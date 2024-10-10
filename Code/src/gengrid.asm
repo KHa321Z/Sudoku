@@ -1,13 +1,13 @@
 create_grid:
-    ; POS_X
-    ; POS_Y
-    ; COLOR
-    ; FILL_ARRAY
-    ; GRID_LENGTH
-    ; BOX_SIZE
+    ; [BP + 14] POS_X
+    ; [BP + 12] POS_Y
+    ; [BP + 10] COLOR
+    ; [BP + 08] FILL_ARRAY
+    ; [BP + 06] GRID_LENGTH
+    ; [BP + 04] BOX_SIZE
     PUSH BP
     MOV BP, SP
-    ; CURR_FILL
+    ; [BP - 2] CURR_FILL
     SUB SP, 2
     PUSHA
 

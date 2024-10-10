@@ -1,14 +1,14 @@
 printfont:
     PUSH BP
-    ; POS_X
-    ; POS_Y
-    ; WIDTH
-    ; HEIGHT
-    ; COLOR
-    ; ADDRESS
+    ; [BP + 14] POS_X
+    ; [BP + 12] POS_Y
+    ; [BP + 10] WIDTH
+    ; [BP + 08] HEIGHT
+    ; [BP + 06] COLOR
+    ; [BP + 04] ADDRESS
     MOV BP, SP
-    ; PIXEL_COUNT
-    ; CURR_FONT_BYTE
+    ; [BP - 02] PIXEL_COUNT
+    ; [BP - 04] CURR_FONT_BYTE
     SUB SP, 4
     PUSHA
 

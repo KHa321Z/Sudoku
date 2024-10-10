@@ -1,8 +1,8 @@
 draw_hLine:
-    ; POS_X1
-    ; POS_X2
-    ; POS_Y
-    ; COLOR
+    ; [BP + 10] POS_X1
+    ; [BP + 08] POS_X2
+    ; [BP + 06] POS_Y
+    ; [BP + 04] COLOR
     PUSH BP
     MOV BP, SP
     PUSHA

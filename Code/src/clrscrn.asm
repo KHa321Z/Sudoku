@@ -3,7 +3,7 @@
 ; BUT WILL CHECK WHAT TO ADD
 
 clear_screen:
-    ; COLOR
+    ; [BP + 4] COLOR
     PUSH BP
     MOV BP, SP
     PUSH ES
