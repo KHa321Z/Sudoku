@@ -60,7 +60,7 @@ same_row:
     JNZ drawfont
 
     POPA
-    POP BP
     MOV SP, BP
+    POP BP
 
     RET 12
