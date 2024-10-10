@@ -15,45 +15,28 @@
         {
             "type": "shell",
             "label": "Assemble Only",
-            "command": "${workspaceFolder}\\DOSBoxPortable\\DOSBoxPortable.exe",
+            "command": "${workspaceFolder}\\NASM",
             "args": [
-                "-c", "\\Tools\\nasm \\${relativeFileDirname}\\${fileBasename} -o \\${relativeFileDirname}\\${fileBasenameNoExtension}.COM",
-                "-c", "exit"
-            ],
-            "dependsOn": "Set Conf File",
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-            "problemMatcher": [],
-            "detail": "Task to assemble an assembly file using NASM"
-        },
-        {
-            "type": "shell",
-            "label": "Assemble and Link",
-            "command": "${workspaceFolder}\\DOSBoxPortable\\DOSBoxPortable.exe",
-            "args": [
-                "-c", "\\Tools\\nasm \\${relativeFileDirname}\\${fileBasename} -l \\${relativeFileDirname}\\${fileBasenameNoExtension}.LST -o \\${relativeFileDirname}\\${fileBasenameNoExtension}.COM",
-                "-c", "exit"
+                "${workspaceFolder}\\Code\\main.asm", "-o", "${workspaceFolder}\\Code\\main.com"
             ],
             "dependsOn": "Set Conf File",
             "group": "build",
             "problemMatcher": [],
-            "detail": "Task to assemble and link an assembly file using NASM"
+            "detail": "Task to assemble an assembly file using NASM"
         },
         {
             "type": "shell",
             "label": "Assemble and Run",
             "command": "${workspaceFolder}\\DOSBoxPortable\\DOSBoxPortable.exe",
             "args": [
-                "-c", "\\${relativeFileDirname}\\${fileBasenameNoExtension}.COM"
+                "-c", "Code\\main.com"
             ],
             "dependsOn": [
                 "Set Conf File",
-                "Assemble and Link"
+                "Assemble Only"
             ],
             "group": {
-                "kind": "test",
+                "kind": "build",
                 "isDefault": true
             },
             "problemMatcher": [],
@@ -64,13 +47,16 @@
             "label": "Assemble and Debug",
             "command": "${workspaceFolder}\\DOSBoxPortable\\DOSBoxPortable.exe",
             "args": [
-                "-c", "\\Tools\\afd \\${relativeFileDirname}\\${fileBasenameNoExtension}.COM"
+                "-c", "AFD Code\\main.com"
             ],
             "dependsOn": [
                 "Set Conf File",
-                "Assemble and Link"
+                "Assemble Only"
             ],
-            "group": "test",
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            },
             "problemMatcher": [],
             "detail": "Task to assemble and debug the assembled and linked program using afd"
         }
