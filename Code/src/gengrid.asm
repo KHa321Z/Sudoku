@@ -7,8 +7,9 @@ create_grid:
     ; [BP + 04] BOX_SIZE
     PUSH BP
     MOV BP, SP
-    ; [BP - 2] CURR_FILL
     SUB SP, 2
+    ; [BP - 2] CURR_FILL
+
     PUSHA
 
     MOV CX, 0
@@ -62,6 +63,7 @@ fill_loop:
     JNZ fill_loop
 
     POPA
+    
     MOV SP, BP
     POP BP
 

@@ -5,6 +5,7 @@ draw_hLine:
     ; [BP + 04] COLOR
     PUSH BP
     MOV BP, SP
+
     PUSHA
 
     MOV AH, 0x0C
@@ -22,6 +23,7 @@ hLine:
     JNE hLine
 
     POPA
+    
     MOV SP, BP
     POP BP
 
