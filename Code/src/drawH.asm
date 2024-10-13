@@ -26,7 +26,7 @@ hLine:
     INC CX
     
     CMP CX, DI
-    JLE hLine
+    JL hLine
 
     POPA
     

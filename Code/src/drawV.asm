@@ -26,7 +26,7 @@ vLine:
     INC DX
     
     CMP DX, DI
-    JLE vLine
+    JL vLine
 
     POPA
     
