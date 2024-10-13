@@ -15,12 +15,18 @@ draw_hLine:
     MOV DX, [BP + 6]
     MOV DI, [BP + 8]
 
+    ; STORING SMALLER POS_X IN CX
+    ; STORING GREATER POS_X IN DI
+    CMP CX, DI
+    JL hLine
+    XCHG CX, DI
+
 hLine:
     INT 0x10
     INC CX
     
-    CMP DI, CX
-    JNE hLine
+    CMP CX, DI
+    JLE hLine
 
     POPA
     

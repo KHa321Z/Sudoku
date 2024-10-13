@@ -15,12 +15,18 @@ draw_vLine:
     MOV DX, [BP + 10]
     MOV DI, [BP + 8]
 
+    ; STORING SMALLER POS_Y IN DX
+    ; STORING GREATER POS_Y IN DI
+    CMP DX, DI
+    JL vLine
+    XCHG DX, DI
+
 vLine:
     INT 0x10
     INC DX
     
-    CMP DI, DX
-    JNE vLine
+    CMP DX, DI
+    JLE vLine
 
     POPA
     
