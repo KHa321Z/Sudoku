@@ -152,12 +152,13 @@ terminate_printNotes:
 
 
 printNumbers:
-    ; [BP + 14] IND_X
-    ; [BP + 12] IND_Y
-    ; [BP + 10] GRID_X
-    ; [BP + 08] GRID_Y
-    ; [BP + 06] FILL_ARRAY
-    ; [BP + 04] BOX_SIZE
+    ; [BP + 16] IND_X
+    ; [BP + 14] IND_Y
+    ; [BP + 12] GRID_X
+    ; [BP + 10] GRID_Y
+    ; [BP + 08] FILL_ARRAY
+    ; [BP + 06] BOX_SIZE
+    ; [BP + 04] COLOR
     PUSH BP
     MOV BP, SP
 
@@ -167,22 +168,22 @@ printNumbers:
     MOV DI, big
 
     MOV AX, 9
-    MUL byte [BP + 12]
+    MUL byte [BP + 14]
     ADD SI, AX
-    ADD SI, [BP + 14]
+    ADD SI, [BP + 16]
 
     SUB SP, 4
+    PUSH word [BP + 16]
     PUSH word [BP + 14]
-    PUSH word [BP + 12]
+    PUSH word [BP + 8]
     PUSH word [BP + 6]
-    PUSH word [BP + 4]
     CALL traverseGrid
     POP DX
     POP CX
 
-    ADD CX, [BP + 10]
+    ADD CX, [BP + 12]
     ADD CX, 9
-    ADD DX, [BP + 8]
+    ADD DX, [BP + 10]
     ADD DX, 5
 
     XOR AX, AX
@@ -195,7 +196,7 @@ printNumbers:
     PUSH DX
     PUSH word 24
     PUSH word 32
-    PUSH word 0x0
+    PUSH word [BP + 4]
     PUSH DI
     CALL printfont
 
