@@ -118,7 +118,7 @@ draw_note:
     PUSH DX
     PUSH word 8
     PUSH word 8
-    PUSH word 0xF
+    PUSH word 0x4
     PUSH DI
     CALL printfont
 
@@ -148,7 +148,6 @@ terminate_printNotes:
     POP BP
 
     RET 12
-
 
 
 printNumbers:
@@ -206,3 +205,109 @@ printNumbers:
     POP BP
 
     RET 14
+
+
+drawCards:
+    ; [BP + 18] POS_X
+    ; [BP + 16] POS_Y
+    ; [BP + 14] CARD_WIDTH
+    ; [BP + 12] CARD_HEIGHT
+    ; [BP + 10] SPACING_X
+    ; [BP + 08] SPACING_Y
+    ; [BP + 06] CARD_COLOR
+    ; [BP + 04] NUMBER_COLOR
+    PUSH BP
+    MOV BP, SP
+
+    PUSHA
+
+    MOV AX, 4
+    MOV BX, 2
+    MOV CX, [BP + 18]
+    MOV DX, [BP + 16]
+    MOV SI, big + 96
+    MOV DI, SP
+
+draw_card:
+    PUSH CX
+    PUSH DX
+    PUSH word [BP + 14]
+    PUSH word [BP + 12]
+    PUSH word [BP + 6]
+    PUSH word 1
+    CALL drawRect
+
+    PUSH CX
+    PUSH DX
+    PUSH word 24
+    PUSH word 32
+    PUSH word [BP + 4]
+    PUSH SI
+    ADD word [DI - 2], 8
+    ADD word [DI - 4], 5
+    CALL printfont
+
+    PUSH CX
+    PUSH DX
+    PUSH word 8
+    PUSH word 8
+    PUSH word [BP + 4]
+    PUSH word smol + 72
+    ADD word [DI - 2], 16
+    ADD word [DI - 4], 47
+    CALL printfont
+
+    ADD CX, [BP + 14]
+    ADD CX, [BP + 10]
+    ADD SI, 96
+
+    DEC BX
+    JNZ draw_card
+
+    MOV BX, 2
+    MOV CX, [BP + 18]
+    ADD DX, [BP + 12]
+    ADD DX, [BP + 8]
+
+    DEC AX
+    JNZ draw_card
+
+    MOV AX, [BP + 14]
+    ADD AX, [BP + 10]
+    SHR AX, 1
+    ADD CX, AX
+
+    PUSH CX
+    PUSH DX
+    PUSH word [BP + 14]
+    PUSH word [BP + 12]
+    PUSH word [BP + 6]
+    PUSH word 1
+    CALL drawRect
+
+    PUSH CX
+    PUSH DX
+    PUSH word 24
+    PUSH word 32
+    PUSH word [BP + 4]
+    PUSH SI
+    ADD word [DI - 2], 8
+    ADD word [DI - 4], 5
+    CALL printfont
+
+    PUSH CX
+    PUSH DX
+    PUSH word 8
+    PUSH word 8
+    PUSH word [BP + 4]
+    PUSH word smol + 72
+    ADD word [DI - 2], 16
+    ADD word [DI - 4], 47
+    CALL printfont
+
+    POPA
+
+    MOV SP, BP
+    POP BP
+
+    RET 16

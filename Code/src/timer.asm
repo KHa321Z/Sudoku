@@ -43,7 +43,7 @@ print_clock:
 
     ; CALL Teletype Output
     MOV AH, 0x0E
-    MOV BL, 0xF
+    MOV BL, 0x1
     INT 0x10
 
     LOOP print_clock

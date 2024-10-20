@@ -6,12 +6,9 @@ clear_screen:
     ; [BP + 4] COLOR
     PUSH BP
     MOV BP, SP
+
+    PUSHA
     PUSH ES
-    PUSH AX
-    PUSH BX
-    PUSH CX
-    PUSH DX
-    PUSH DI
 
     MOV AX, 0xA000
     MOV ES, AX
@@ -34,29 +31,10 @@ clear_screen:
     MOV CX, 19200
     REP STOSW
 
-    MOV AL, 0xF
-    MOV DX, 0x3C8
-    OUT DX, AL
-
-    MOV DX, 0x3C9
-    MOV AL, 63
-    OUT DX, AL
-    MOV AL, 63
-    OUT DX, AL
-    MOV AL, 63
-    OUT DX, AL
-
-    MOV AX, 0x0B00
-    MOV BL, 0xF
-    INT 0x10
-
-    POP DI
-    POP DX
-    POP CX
-    POP BX
-    POP AX
     POP ES
+    POPA
+
     MOV SP, BP
     POP BP
 
-    RET 2
+    RET
