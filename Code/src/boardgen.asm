@@ -272,120 +272,10 @@ fill_zero:
     RET 4
 
 
-; Function for generating a solved board
-fillBoard:
-    ; [BP + 10] IS_FILLED (RETURN)
-    ; [BP + 08] BOARD
-    ; [BP + 06] IND_X
-    ; [BP + 04] IND_Y
-    PUSH BP
-    MOV BP, SP
-
-    PUSHA
-
-    MOV word [BP + 10], 0
-
-    ; Check if on diagonal subgrid
-    MOV AX, [BP + 4]
-    MOV CX, 3
-    DIV CL
-    MOV BL, AL
-
-    MOV AX, [BP + 6]
-    MOV CL, 3
-    DIV CL
-
-    CMP AL, BL
-    JNE not_on_diagonal
-
-    ; Base Case
-    ; Reached last row and last diagonal subgrid
-    CMP word [BP + 4], 8
-    JE board_filled
-
-    ; On diagonal
-    MOV AX, [BP + 6]
-    ADD AX, 3
-    MOV CL, 9
-    DIV CL
-
-    ADD [BP + 4], AL
-    MOV [BP + 6], AH
-
-    ; Not on diagonal
-not_on_diagonal:
-    MOV SI, [BP + 8]
-
-    MOV AX, [BP + 4]
-    MOV CX, 9
-    MUL CL
-
-    ADD SI, AX
-    ADD SI, [BP + 6]
-
-    ; Checking every value by brute force
-checking_value:
-    ; Checking whether value is inserteable
-    PUSH word 0
-    PUSH word [BP + 8]
-    PUSH CX
-    PUSH word [BP + 6]
-    PUSH word [BP + 4]
-    CALL insertIsValid
-    POP AX
-
-    CMP AX, 0
-    JZ check_next
-
-    ; Inserts Value
-    MOV [SI], CL
-
-    ; Recursive Call
-    MOV AX, [BP + 6]
-    INC AX
-    MOV BX, 9
-    DIV BL
-
-    MOV BL, AL
-    ADD BX, [BP + 4]
-
-    MOV AL, AH
-    XOR AH, AH
-
-    PUSH word 0
-    PUSH word [BP + 8]
-    PUSH AX
-    PUSH BX
-    CALL fillBoard
-    POP AX
-
-    ; Board Filled
-    CMP AX, 1
-    JE board_filled
-
-    ; Remove Value if board not solved
-    MOV byte [SI], 0
-
-check_next:
-    LOOP checking_value
-
-    JMP term_fillBoard
-
-board_filled:
-    ; Return Value of Filled Board
-    MOV word [BP + 10], 1
-
-term_fillBoard:
-    POPA
-
-    POP BP
-
-    RET 6
-
-
 ; Function for checking all possible solutions of a partially filled board
 checkSolutions:
-    ; [BP + 08] NO_OF_SOLUTION (RETURN)
+    ; [BP + 10] NO_OF_SOLUTION (RETURN)
+    ; [BP + 08] REQ_SOLUTIONS
     ; [BP + 06] BOARD
     ; [BP + 04] ARRAY_INDEX
     PUSH BP
@@ -441,17 +331,19 @@ inserting_value:
     MOV [BX + DI - 1], CL
 
     ; Recursive Call
+    PUSH word [BP + 10]
     PUSH word [BP + 8]
     PUSH BX
     PUSH DI
     CALL checkSolutions
     POP SI
 
-    ; Check whether another solution is found
-    MOV [BP + 8], SI
-    ; If 2 solutions found then terminate
-    CMP word [BP + 8], 1
-    JG term_checkSolutions
+    ; Check whether solution is found
+    MOV [BP + 10], SI
+    ; If number of solutions match required number of solutions
+    ; Then terminate
+    CMP [BP + 8], SI
+    JE term_checkSolutions
 
     ; Removes Value to check for another combination
     MOV byte [BX + DI - 1], 0
@@ -463,7 +355,7 @@ insert_next:
 
 fully_traversed:
     ; Found a Solution
-    INC word [BP + 8]
+    INC word [BP + 10]
 
 term_checkSolutions:
     POP ES
@@ -471,4 +363,4 @@ term_checkSolutions:
 
     POP BP
 
-    RET 4
+    RET 6
