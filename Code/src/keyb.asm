@@ -94,6 +94,7 @@ skip_reset_score:
     MOV byte [board + BX], 0
 
     ; Play Sound
+    CALL errorSound
 
     JMP nomatch
 
@@ -211,6 +212,52 @@ chk_note:
     ; Toggle Notes Button
     XOR byte [notesOn], 1
 
+    ; Fill
+    XOR BH, BH
+    MOV BL, [notesOn]
+    
+    ; Toggle On Color
+    MOV AX, 0xF
+
+    CMP byte [notesOn], 1
+    JE draw_note_btn
+
+    ; Color of Font
+    MOV AX, 0x1
+
+    ; Clear Previous Circle
+    PUSH word 580
+    PUSH word 200
+    PUSH word 20
+    PUSH word 0
+    PUSH word 0x1
+    CALL drawCircle
+
+    ; Increase Thickness
+    PUSH word 580
+    PUSH word 200
+    PUSH word 19
+    PUSH 0x1
+    PUSH BX
+    CALL drawCircle
+
+draw_note_btn:
+    ; Print Notes Button
+    PUSH word 580
+    PUSH word 200
+    PUSH word 20
+    PUSH word 0x1
+    PUSH BX
+    CALL drawCircle
+    
+    PUSH word 569
+    PUSH word 188
+    PUSH word 24
+    PUSH word 24
+    PUSH AX
+    PUSH word pencil_btn
+    CALL printfont
+
     JMP nomatch
 
 chk_erase:
@@ -220,6 +267,52 @@ chk_erase:
 
     ; Toggle Erase Button
     XOR byte [eraseOn], 1
+
+    ; Fill
+    XOR BH, BH
+    MOV BL, [eraseOn]
+    
+    ; Toggle On Color
+    MOV AX, 0xF
+
+    CMP byte [eraseOn], 1
+    JE draw_erase_btn
+
+    ; Color of Font
+    MOV AX, 0x1
+
+    ; Clear Previous Circle
+    PUSH word 580
+    PUSH word 270
+    PUSH word 20
+    PUSH word 0
+    PUSH word 0x1
+    CALL drawCircle
+
+    ; Increase Thickness
+    PUSH word 580
+    PUSH word 270
+    PUSH word 19
+    PUSH 0x1
+    PUSH BX
+    CALL drawCircle
+
+draw_erase_btn:
+    ; Print Erase Button
+    PUSH word 580
+    PUSH word 270
+    PUSH word 20
+    PUSH word 0x1
+    PUSH BX
+    CALL drawCircle
+    
+    PUSH word 568
+    PUSH word 258
+    PUSH word 24
+    PUSH word 24
+    PUSH AX
+    PUSH word eraser_btn
+    CALL printfont
 
     JMP nomatch
 
