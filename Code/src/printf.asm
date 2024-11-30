@@ -80,7 +80,7 @@ printNotes:
 
     PUSHA
 
-    MOV SI, notes_values
+    MOV SI, notes
 
     ; TRAVERSING COL INDICES IN NOTES
     MOV AX, 18
@@ -163,7 +163,7 @@ printNumbers:
 
     PUSHA
 
-    MOV SI, grid_values
+    MOV SI, board
     MOV DI, big
 
     MOV AX, 9
@@ -218,11 +218,15 @@ drawCards:
     ; [BP + 04] NUMBER_COLOR
     PUSH BP
     MOV BP, SP
+    SUB SP, 4
+    ; [BP - 02] COL_COUNTER
+    ; [BP - 04] CARD_INDEX
 
     PUSHA
 
+    MOV word [BP - 2], 2
     MOV AX, 4
-    MOV BX, 2
+    MOV BX, 0
     MOV CX, [BP + 18]
     MOV DX, [BP + 16]
     MOV SI, big + 96
@@ -247,24 +251,31 @@ draw_card:
     ADD word [DI - 4], 5
     CALL printfont
 
+    MOV [BP - 4], BX
+    MOV BL, [remaining_nos + BX]
+    SHL BX, 3
+    ADD BX, smol
+
     PUSH CX
     PUSH DX
     PUSH word 8
     PUSH word 8
     PUSH word [BP + 4]
-    PUSH word smol + 72
+    PUSH word BX
     ADD word [DI - 2], 16
     ADD word [DI - 4], 47
     CALL printfont
 
+    MOV BX, [BP - 4]
+    INC BX
     ADD CX, [BP + 14]
     ADD CX, [BP + 10]
     ADD SI, 96
 
-    DEC BX
+    DEC word [BP - 2]
     JNZ draw_card
 
-    MOV BX, 2
+    MOV word [BP - 2], 2
     MOV CX, [BP + 18]
     ADD DX, [BP + 12]
     ADD DX, [BP + 8]
@@ -295,12 +306,16 @@ draw_card:
     ADD word [DI - 4], 5
     CALL printfont
 
+    MOV BL, [remaining_nos + BX]
+    SHL BX, 3
+    ADD BX, smol
+
     PUSH CX
     PUSH DX
     PUSH word 8
     PUSH word 8
     PUSH word [BP + 4]
-    PUSH word smol + 72
+    PUSH word BX
     ADD word [DI - 2], 16
     ADD word [DI - 4], 47
     CALL printfont
@@ -311,3 +326,142 @@ draw_card:
     POP BP
 
     RET 16
+
+printTeleNum:
+    ; [BP + 06] Row/Col Value
+    ; [BP + 04] Number
+    PUSH BP
+    MOV BP, SP
+
+    PUSHA
+    PUSH ES
+
+    PUSH DS
+    POP ES
+
+    MOV AX, [BP + 4]
+    MOV BX, 10
+    MOV CX, 0
+
+next_digit:
+    MOV DX, 0
+    DIV BX
+
+    ADD DL, 0x30
+    PUSH DX
+
+    INC CX
+    CMP AX, 0
+    JNZ next_digit
+
+    ; Set Cursor Position
+    MOV AH, 0x02
+    MOV BH, 0
+    MOV DX, [BP + 6]
+    INT 0x10
+    ; Set Color
+    MOV BX, 0x0004
+
+print_next_digit:
+    POP AX
+    MOV AH, 0x0E
+    INT 0x10
+
+    LOOP print_next_digit
+
+    POP ES
+    POPA
+
+    POP BP
+
+    RET 4
+
+printMistakes:
+    ; [BP + 04] Row/Col Value
+    PUSH BP
+    MOV BP, SP
+
+    PUSHA
+    PUSH ES
+
+    PUSH DS
+    POP ES
+
+    MOV AX, 0x1300
+    MOV BX, 0x0001
+    MOV CX, [m_size]
+    MOV DX, [BP + 4]
+
+    PUSH BP
+    MOV BP, mistakes
+    INT 0x10
+    POP BP
+
+    PUSH BP
+    ADD SP, 3
+    MOV BP, SP
+
+    MOV CX, [mistake_count]
+    MOV byte [BP], CL
+    MOV byte [BP + 1], '/'
+    MOV byte [BP + 2], '3'
+
+    MOV CX, 3
+    ADD DL, [m_size]
+    INT 0x10
+
+    SUB SP, 3
+    POP BP
+
+    POP ES
+    POPA
+
+    POP BP
+
+    RET 2    
+
+printScore:
+    ; [BP + 04] Row/Col Value
+    PUSH BP
+    MOV BP, SP
+
+    PUSHA
+    PUSH ES
+
+    PUSH DS
+    POP ES
+
+    ; Print Score Text
+    MOV AX, 0x1300
+    MOV BX, 0x0004
+    MOV CX, [score_size]
+    MOV DX, [BP + 4]
+
+    PUSH BP
+    MOV BP, score_text
+    INT 0x10
+    POP BP
+
+    ADD DX, [score_size]
+    INC DX
+
+    ; Clear Previous Score
+    MOV AH, 0x02
+    MOV BH, 0
+    INT 0x10
+
+    MOV AH, 0x0A
+    MOV AL, ' '
+    MOV CX, 4
+    INT 0x10
+
+    PUSH DX
+    PUSH word [score]
+    CALL printTeleNum
+
+    POP ES
+    POPA
+
+    POP BP
+
+    RET 2 
