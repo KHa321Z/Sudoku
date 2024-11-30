@@ -4,7 +4,9 @@
 
 %include "Code/assets/font.asm"
 %include "Code/assets/btns.asm"
+%include "Code/assets/sound.asm"
 %include "Code/src/clrscrn.asm"
+%include "Code/src/rand.asm"
 %include "Code/src/drawH.asm"
 %include "Code/src/drawV.asm"
 %include "Code/src/drawC.asm"
@@ -12,6 +14,10 @@
 %include "Code/src/gengrid.asm"
 %include "Code/src/printf.asm"
 %include "Code/src/timer.asm"
+%include "Code/src/keyb.asm"
+%include "Code/src/boardgen.asm"
+%include "Code/src/load.asm"
+%include "Code/src/undo.asm"
 
 ; MAIN SCREEN
 title:  db 'SUDOKU'
@@ -35,6 +41,8 @@ start:
     ; MOV AX, 0
     ; INT 0x16
 
+    CALL loadingscreen
+
     CALL gamescreen
     MOV AX, 0
     INT 0x16
@@ -56,16 +64,27 @@ box_size:       dw 42
 grid_length:    dw 400
 fill:           dw 5, 1, 1, 3, 1, 1, 3, 1, 1, 5
 
-grid_values:    times 9 * 9 db 0
-notes_values:   times 9 * 9 dw 0xFFFF
+solved:         times 41 dw 0
+board:          times 41 dw 0
+notes:          times 9 * 9 dw 0
+remaining_nos:  times 9 db 9
+empty_values:   dw 0
 
-score:          db 'Score:'
-score_size:     dw score_size - score
-mistakes:       db 'Mistakes: 0/3'
+score_mult:     dw 10
+score_sec:      dw 18
+score:          dw 0
+score_text:     db 'Score:'
+score_size:     dw score_size - score_text
+
+mistake_count:  dw 0x30
+mistakes:       db 'Mistakes: '
 m_size:         dw m_size - mistakes
+
+difficulty:     dw 0
 gamemode:       db 'Mode:'
 mode:           db 'Easy'
 mode_size:      dw mode_size - mode
+
 timestr:        db 'Time:'
 time_size:      dw time_size - timestr
 empty_timer:    db '00:00'
@@ -79,59 +98,110 @@ edit_size:      db edit_size - edit
 hint:           db 'HINT'
 hint_size:      db hint_size - hint
 
+palette_data:   db 62, 54, 46               ; 0x0 Background
+                db 58, 35, 09               ; 0x1 Grid Border
+                db 59, 47, 35               ; 0x2 Highlighted Grid Boxes
+                db 63, 55, 47               ; 0x3 Not Filled Grid Boxes
+                db 47, 26, 00               ; 0x4 Pre Filled Numbers
+                db 63, 28, 00               ; 0x5 Custom Filled Numbers
+                db 63, 00, 00               ; 0x6 Highlighted Grid Boxes Border
+                db 59, 37, 37               ; 0x7 Mistake Grid Box Background
+palette_size:   dw $ - palette_data
+
+; Send Palette Data to DAC
+setPalette:
+    PUSHA
+
+    ; DAC Pallete Write Port
+    MOV DX, 0x3C8
+    ; Pallete Color Index 0
+    XOR AL, AL
+    OUT DX, AL
+
+    MOV SI, palette_data
+    MOV CX, [palette_size]
+    ; DAC Port for RGB Values
+    MOV DX, 0x3C9
+
+palette_loop:
+    MOV AL, [SI]
+    OUT DX, AL
+    
+    INC SI
+    LOOP palette_loop
+
+    POPA
+
+    RET
+
 startscreen:
+
+    PUSHA
+
+    CALL setPalette
+
+    POPA
+
+    RET
+
+; Multitask with Loading Screen
+loadingscreen:
 
     PUSHA
     PUSH ES
 
+    ; Set Task for Loading Animation
+    CALL setLoadingTask
+
+    PUSH word loadTimer
+    CALL hookTimer
+
+    ; Background Task of Board Generation
+    PUSH word solved
+    CALL fillDiagonalSubGrids
+
+    PUSH word 0
+    PUSH word 1
+    PUSH word solved
+    PUSH word 0
+    CALL checkSolutions
+    POP BX
+
     PUSH DS
     POP ES
 
-    MOV AL, 0x0
-    MOV DX, 0x3C8
-    OUT DX, AL
+    ; Use this when selecting levels
+    MOV word [difficulty], 60
 
-    MOV DX, 0x3C9
+generate_new_board:
+    MOV CX, 41
+    MOV SI, solved
+    MOV DI, board
 
-    ; BG
-    MOV AL, 62
-    OUT DX, AL
-    MOV AL, 54
-    OUT DX, AL
-    MOV AL, 46
-    OUT DX, AL
+    REP MOVSW
 
-    ; GRID_BORDER
-    MOV AL, 58
-    OUT DX, AL
-    MOV AL, 35
-    OUT DX, AL
-    MOV AL, 9
-    OUT DX, AL
+    MOV CX, 81
+    SUB CX, [difficulty]
 
-    ; FILLED_GRID_BOXES
-    MOV AL, 59
-    OUT DX, AL
-    MOV AL, 47
-    OUT DX, AL
-    MOV AL, 35
-    OUT DX, AL
+    ; Add Difficulties
+    PUSH word board
+    PUSH word CX
+    CALL removeValues
+    ; Change this to help in Winning Condition
+    MOV word [empty_values], CX
 
-    ; NOT_FILLED_GRID_BOXES
-    MOV AL, 63
-    OUT DX, AL
-    MOV AL, 58
-    OUT DX, AL
-    MOV AL, 50
-    OUT DX, AL
+    PUSH word 0
+    PUSH word 2
+    PUSH word board
+    PUSH word 0
+    CALL checkSolutions
+    POP BX
 
-    ; NUMBERS
-    MOV AL, 63
-    OUT DX, AL
-    MOV AL, 28
-    OUT DX, AL
-    MOV AL, 0
-    OUT DX, AL
+    CMP BX, 2
+    JE generate_new_board
+
+    ; Board Generation Complete
+    CALL unhookTimer
 
     POP ES
     POPA
@@ -146,9 +216,19 @@ gamescreen:
     PUSH DS
     POP ES
 
+    PUSH word timerISR
     CALL hookTimer
+    CALL hookKb
 
-    ; Make Grid
+    ; Changes Background of Grid
+    ; PUSH word 120
+    ; PUSH word 70
+    ; PUSH word [grid_length]
+    ; PUSH word [grid_length]
+    ; PUSH word 0x3
+    ; CALL clearBg
+
+    ; Draw Grid
     PUSH word 120
     PUSH word 70
     PUSH word 0x1
@@ -158,27 +238,12 @@ gamescreen:
     CALL create_grid
 
     ; Print Score
-    MOV AX, 0x1301
-    MOV BX, 0x0004
-    MOV CX, [score_size]
-    MOV DX, 0x0124
-    MOV BP, score
-    INT 0x10
-
-    MOV AX, 0x0E20
-    MOV BX, 0x0004
-    INT 0x10
-    MOV AX, 0x0E30
-    MOV BX, 0x0004
-    INT 0x10
+    PUSH word 0x0124
+    CALL printScore
 
     ; Print Mistakes
-    MOV AX, 0x1300
-    MOV BX, 0x0001
-    MOV CX, [m_size]
-    MOV DX, 0x030F
-    MOV BP, mistakes
-    INT 0x10
+    PUSH word 0x030F
+    CALL printMistakes
 
     ; Print Game Mode
     MOV AX, 0x1300
@@ -198,140 +263,85 @@ gamescreen:
 
     ; Print Notes Button
     PUSH word 580
-    PUSH word 180
+    PUSH word 200
+    PUSH word 19
+    PUSH word 0x1
+    PUSH word 0
+    CALL drawCircle
+    PUSH word 580
+    PUSH word 200
     PUSH word 20
     PUSH word 0x1
-    PUSH word 0x1
+    PUSH word 0
     CALL drawCircle
     
     PUSH word 569
-    PUSH word 168
+    PUSH word 188
     PUSH word 24
     PUSH word 24
-    PUSH word 0xF
+    PUSH word 0x1
     PUSH word pencil_btn
     CALL printfont
 
     ; Print Erase Button
     PUSH word 580
-    PUSH word 240
+    PUSH word 270
+    PUSH word 19
+    PUSH word 0x1
+    PUSH word 0
+    CALL drawCircle
+    PUSH word 580
+    PUSH word 270
     PUSH word 20
     PUSH word 0x1
-    PUSH word 0x1
+    PUSH word 0
     CALL drawCircle
     
     PUSH word 568
-    PUSH word 228
+    PUSH word 258
     PUSH word 24
     PUSH word 24
-    PUSH word 0xF
+    PUSH word 0x1
     PUSH word eraser_btn
     CALL printfont
 
     ; Print Undo Button
     PUSH word 580
-    PUSH word 300
+    PUSH word 340
     PUSH word 20
     PUSH word 0x1
     PUSH word 0x1
     CALL drawCircle
     
     PUSH word 568
-    PUSH word 288
+    PUSH word 328
     PUSH word 24
     PUSH word 24
     PUSH word 0xF
     PUSH word undo_btn
     CALL printfont
 
-    ; Print Hint Button
-    ; PUSH word 580
-    ; PUSH word 360
-    ; PUSH word 20
-    ; PUSH word 0x8
-    ; PUSH word 0x1
-    ; CALL drawCircle
-
-    ; PUSH word 0
-    ; PUSH word 0
-    ; PUSH word 120
-    ; PUSH word 70
-    ; PUSH word fill
-    ; PUSH word [box_size]
-    ; PUSH word 0x7
-    ; CALL clearGridBox
-
-    PUSH word 1
-    PUSH word 7
-    PUSH word 120
-    PUSH word 70
-    PUSH word fill
-    PUSH word [box_size]
-    CALL printNotes
-
-    PUSH word 3
-    PUSH word 1
-    PUSH word 120
-    PUSH word 70
-    PUSH word fill
-    PUSH word [box_size]
-    CALL printNotes
-
-    PUSH word 8
-    PUSH word 4
-    PUSH word 120
-    PUSH word 70
-    PUSH word fill
-    PUSH word [box_size]
-    CALL printNotes
-
-    PUSH word 5
-    PUSH word 8
-    PUSH word 120
-    PUSH word 70
-    PUSH word fill
-    PUSH word [box_size]
-    CALL printNotes
-
-    PUSH word 2
-    PUSH word 4
-    PUSH word 120
-    PUSH word 70
-    PUSH word fill
-    PUSH word [box_size]
-    CALL printNotes
-
-    PUSH word 6
-    PUSH word 0
-    PUSH word 120
-    PUSH word 70
-    PUSH word fill
-    PUSH word [box_size]
-    CALL printNotes
-
+    ; Print Pre-filled Numbers in Grid
     MOV BX, 0
-    MOV byte [grid_values], 1
-    MOV byte [grid_values + 10], 2
-    MOV byte [grid_values + 20], 3
-    MOV byte [grid_values + 30], 4
-    MOV byte [grid_values + 40], 5
-    MOV byte [grid_values + 50], 6
-    MOV byte [grid_values + 60], 7
-    MOV byte [grid_values + 70], 8
-    MOV byte [grid_values + 80], 9
+    MOV DX, 0
 
-fill_fazool_numbers:
-    PUSH word BX
-    PUSH word BX
-    PUSH word 120
-    PUSH word 70
-    PUSH word fill
-    PUSH word [box_size]
-    PUSH word 0x2
-    CALL clearGridBox
+fill_all_numbers:
+    MOV AX, 9
+    MUL DL
+    ADD AX, BX
+    MOV SI, AX
 
-    PUSH BX
-    PUSH BX
+    CMP byte [board + SI], 0
+    JZ skip_number
+
+    ; Reduce Number Card values
+    MOV DI, [board + SI]
+    AND DI, 0xFF
+    DEC DI
+    DEC byte [remaining_nos + DI]
+
+    PUSH word BX
+    PUSH word DX
     PUSH word 120
     PUSH word 70
     PUSH word fill
@@ -339,9 +349,17 @@ fill_fazool_numbers:
     PUSH word 0x4
     CALL printNumbers
 
+skip_number:
     INC BX
     CMP BX, 9
-    JNE fill_fazool_numbers
+    JNE next_dabba
+
+    XOR BX, BX
+    INC DX
+
+next_dabba:
+    CMP DX, 9
+    JNE fill_all_numbers
 
     PUSH word 15
     PUSH word 100
@@ -353,10 +371,23 @@ fill_fazool_numbers:
     PUSH word 0xF
     call drawCards
 
-    MOV AX, 0
-    INT 0x16
+    PUSH word 0x6
+    PUSH word 0x2
+    CALL redrawCell
+
+game_loop:
+    CMP word [empty_values], 0
+    JE game_loop_end
+
+    CMP word [mistake_count], 0x33
+    JE game_loop_end
+
+    JMP game_loop
+
+game_loop_end:
 
     CALL unhookTimer
+    CALL unhookKb
 
     POP ES
     POPA
@@ -414,7 +445,7 @@ endingscreen:
     MOV BX, 0x0001
     MOV CX, [score_size]
     MOV DX, 0x0D18
-    MOV BP, score
+    MOV BP, score_text
     INT 0x10
 
     MOV AX, 0x0E20
@@ -488,6 +519,8 @@ endingscreen:
     PUSH word 0x1
     PUSH word 0x0
     CALL drawRect
+
+    JMP $
 
     POP ES
     POPA
