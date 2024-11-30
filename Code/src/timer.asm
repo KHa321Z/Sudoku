@@ -61,7 +61,19 @@ timerISR:
 
     MOV word [CS:tick], 0
     INC word [CS:time]
+    ; Decrement Score Multiplier Ticks
+    DEC word [score_sec]
+    JNZ skip_dec_score_mult
 
+    ; Reset Tick Count for Multiplier
+    MOV word [score_sec], 18
+    
+    CMP word [score_mult], 1
+    JE skip_dec_score_mult
+
+    DEC word [score_mult]
+
+skip_dec_score_mult:
     CMP word [CS:time], 60
     JNE call_print_timer
 
@@ -77,6 +89,10 @@ skip_print_timer:
     JMP FAR [CS:oldTimerISR]
 
 hookTimer:
+    ; [BP + 04] TIMER_FUNCTION
+    PUSH BP
+    MOV BP, SP
+
     PUSH AX
     PUSH ES
 
@@ -89,14 +105,17 @@ hookTimer:
     MOV [oldTimerISR + 2], AX
 
     CLI
-    MOV word [ES:8 * 4], timerISR
-    MOV word [ES:8 * 4 + 2], CS
+    MOV AX, [BP + 4]
+    MOV [ES:8 * 4], AX
+    MOV [ES:8 * 4 + 2], CS
     STI
 
     POP ES
     POP AX
 
-    RET
+    POP BP
+
+    RET 2
 
 unhookTimer:
     PUSH AX
