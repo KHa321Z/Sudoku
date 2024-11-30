@@ -175,6 +175,9 @@ chk_up:
     PUSH word 0x0
     CALL redrawCell
 
+    CMP word [boardInd + 2], 0
+    JZ highlight_next
+
     DEC word [boardInd + 2]
 
     JMP highlight_next
@@ -187,6 +190,9 @@ chk_down:
     PUSH word 0x1
     PUSH word 0x0
     CALL redrawCell
+
+    CMP word [boardInd + 2], 8
+    JE highlight_next
 
     INC word [boardInd + 2]
 
@@ -201,6 +207,9 @@ chk_left:
     PUSH word 0x0
     CALL redrawCell
 
+    CMP word [boardInd], 0
+    JZ highlight_next
+
     DEC word [boardInd]
 
     JMP highlight_next
@@ -213,6 +222,9 @@ chk_right:
     PUSH word 0x1
     PUSH word 0x0
     CALL redrawCell
+
+    CMP word [boardInd], 8
+    JE highlight_next
 
     INC word [boardInd]
 
