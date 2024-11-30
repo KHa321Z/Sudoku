@@ -93,7 +93,7 @@ skip_reset_score:
 
     MOV byte [board + BX], 0
 
-    ; Play Sound
+    ; Invalid Input Sound
     CALL errorSound
 
     JMP nomatch
@@ -130,6 +130,20 @@ valid_input:
     PUSH word 0x1
     PUSH word 0xF
     CALL drawCards
+
+    ; If Row, Col and Sub-Grid all Completed Then Play Sound
+    PUSH word 0
+    PUSH word board
+    PUSH word 0
+    PUSH word [boardInd]
+    PUSH word [boardInd + 2]
+    CALL insertIsValid
+    POP AX
+
+    CMP AX, 1
+    JNE highlight_next
+
+    CALL celebratorySound
 
     JMP highlight_next
 
@@ -212,6 +226,9 @@ chk_note:
     ; Toggle Notes Button
     XOR byte [notesOn], 1
 
+    ; Button Press Sound
+    CALL buttonSound
+
     ; Fill
     XOR BH, BH
     MOV BL, [notesOn]
@@ -267,6 +284,9 @@ chk_erase:
 
     ; Toggle Erase Button
     XOR byte [eraseOn], 1
+
+    ; Button Press Sound
+    CALL buttonSound
 
     ; Fill
     XOR BH, BH
@@ -354,9 +374,8 @@ chk_undo:
     POP BX
     POP AX
 
-    ; Play Error Sound
     CMP AX, -1
-    JE nomatch
+    JE no_undo_available
 
     PUSH word [boardInd]
     PUSH word [boardInd + 2]
@@ -385,6 +404,12 @@ chk_undo:
 
     POP word [boardInd + 2]
     POP word [boardInd]
+
+    ; Redraw the Current Cell in the Case Undo was done to Current Cell
+    JMP highlight_next
+
+no_undo_available:
+    CALL errorSound
 
     ; Redraw the Current Cell in the Case Undo was done to Current Cell
     JMP highlight_next
