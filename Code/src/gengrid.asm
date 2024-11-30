@@ -129,12 +129,13 @@ set_rows_cols:
     RET 8
 
 clearGridBox:
-    ; [BP + 16] IND_X
-    ; [BP + 14] IND_Y
-    ; [BP + 12] GRID_X
-    ; [BP + 10] GRID_Y
-    ; [BP + 08] FILL_ARRAY
-    ; [BP + 06] BOX_SIZE
+    ; [BP + 18] IND_X
+    ; [BP + 16] IND_Y
+    ; [BP + 14] GRID_X
+    ; [BP + 12] GRID_Y
+    ; [BP + 10] FILL_ARRAY
+    ; [BP + 08] BOX_SIZE
+    ; [BP + 06] BORDOR_COLOR
     ; [BP + 04] COLOR
     PUSH BP
     MOV BP, SP
@@ -142,46 +143,45 @@ clearGridBox:
     PUSHA
 
     SUB SP, 4
+    PUSH word [BP + 18]
     PUSH word [BP + 16]
-    PUSH word [BP + 14]
+    PUSH word [BP + 10]
     PUSH word [BP + 8]
-    PUSH word [BP + 6]
     CALL traverseGrid
     POP DX
     POP CX
 
-    MOV SI, [BP + 8]
-    ADD CX, [BP + 12]
-    ADD DX, [BP + 10]
+    ADD CX, [BP + 14]
+    ADD DX, [BP + 12]
 
     MOV SI, CX
-    ADD SI, [BP + 6]
+    ADD SI, [BP + 8]
     MOV DI, DX
-    ADD DI, [BP + 6]
+    ADD DI, [BP + 8]
+
     PUSH CX
+    PUSH DX
+    PUSH word [BP + 8]
+    PUSH word [BP + 8]
+    PUSH word [BP + 4]
+    PUSH word 1
+    CALL drawRect
 
-    MOV AH, 0x0C
-    MOV AL, [BP + 4]
-    MOV BX, 0
+    DEC CX
+    DEC DX
+    ADD word [BP + 8], 2
 
-clear_box:
-    INT 0x10
-
-    INC CX
-    CMP CX, SI
-    JL clear_box
-
-    POP CX
     PUSH CX
-    INC DX
+    PUSH DX
+    PUSH word [BP + 8]
+    PUSH word [BP + 8]
+    PUSH word [BP + 6]
+    PUSH word 0
+    CALL drawRect
 
-    CMP DX, DI
-    JL clear_box
-
-    POP CX
     POPA
 
     MOV SP, BP
     POP BP
 
-    RET 14
+    RET 16
