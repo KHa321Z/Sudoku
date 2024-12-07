@@ -143,7 +143,7 @@ palette_loop:
 
     RET 4
 
-difficulties:   db 40, 30, 25
+difficulties:   db 40, 35, 30
 btn_pos:        dw 168, 220, 272, 360
 point_colors:   dw 0x3, 0xF
 
