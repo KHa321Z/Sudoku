@@ -80,8 +80,8 @@ shift_array:
 ; ------------------------------ BOARD FUNCTIONS ------------------------------
 
 
-; Function for checking whether the given number is a valid entry
-insertIsValid:
+; Function for checking whether the given number is a valid entry in a row
+isRowValid:
     ; [BP + 12] IS_VALID (RETURN)
     ; [BP + 10] BOARD
     ; [BP + 08] NUMBER
@@ -92,11 +92,9 @@ insertIsValid:
 
     PUSHA
 
-    MOV word [BP + 12], 1
+    MOV word [BP + 12], 0
     MOV BX, [BP + 10]
     MOV DX, [BP + 8]
-
-    ; Checks same row
     MOV CX, 9
 
     MOV AX, [BP + 4]
@@ -105,23 +103,72 @@ insertIsValid:
 
 check_valid_row:
     CMP [BX + SI], DL
-    JE is_not_valid
+    JE is_not_valid_row
 
     INC SI
     LOOP check_valid_row
 
-    ; Checks same col
+    MOV word [BP + 12], 1
+
+is_not_valid_row:
+    POPA
+
+    POP BP
+
+    RET 8
+
+
+; Function for checking whether the given number is a valid entry in a col
+isColValid:
+    ; [BP + 12] IS_VALID (RETURN)
+    ; [BP + 10] BOARD
+    ; [BP + 08] NUMBER
+    ; [BP + 06] IND_X
+    ; [BP + 04] IND_Y
+    PUSH BP
+    MOV BP, SP
+
+    PUSHA
+
+    MOV word [BP + 12], 0
+    MOV BX, [BP + 10]
+    MOV DX, [BP + 8]
     MOV CX, 9
     MOV SI, [BP + 6]
 
 check_valid_col:
     CMP [BX + SI], DL
-    JE is_not_valid
+    JE is_not_valid_col
 
     ADD SI, 9
     LOOP check_valid_col
 
-    ; Checks same subgrid
+    MOV word [BP + 12], 1
+
+is_not_valid_col:
+    POPA
+
+    POP BP
+
+    RET 8
+
+
+; Function for checking whether the given number is a valid entry in a subgrid
+isSubgridValid:
+    ; [BP + 12] IS_VALID (RETURN)
+    ; [BP + 10] BOARD
+    ; [BP + 08] NUMBER
+    ; [BP + 06] IND_X
+    ; [BP + 04] IND_Y
+    PUSH BP
+    MOV BP, SP
+
+    PUSHA
+
+    MOV word [BP + 12], 0
+    MOV BX, [BP + 10]
+    MOV DX, [BP + 8]
+
     MOV AX, [BP + 4]
     MOV CX, 3
     DIV CL
@@ -145,7 +192,7 @@ check_valid_col:
 
 check_valid_subGrid:
     CMP [BX + SI], DL
-    JE is_not_valid
+    JE is_not_valid_subGrid
 
     DEC AX
     JNZ next_index_subGrid
@@ -157,14 +204,62 @@ next_index_subGrid:
     INC SI
     LOOP check_valid_subGrid
 
-    JMP terminate_is_valid
+    MOV word [BP + 12], 1
 
-is_not_valid:
-    MOV word [BP + 12], 0
-
-terminate_is_valid:
+is_not_valid_subGrid:
     POPA
 
+    POP BP
+
+    RET 8
+
+
+; Function for checking whether the given number is a valid entry in the board
+insertIsValid:
+    ; [BP + 12] IS_VALID (RETURN)
+    ; [BP + 10] BOARD
+    ; [BP + 08] NUMBER
+    ; [BP + 06] IND_X
+    ; [BP + 04] IND_Y
+    PUSH BP
+    MOV BP, SP
+
+    MOV word [BP + 12], 0
+
+    PUSH word 0
+    PUSH word [BP + 10]
+    PUSH word [BP + 8]
+    PUSH word [BP + 6]
+    PUSH word [BP + 4]
+    CALL isRowValid
+    POP word [BP + 12]
+
+    CMP word [BP + 12], 0
+    JE is_not_valid
+
+    PUSH word 0
+    PUSH word [BP + 10]
+    PUSH word [BP + 8]
+    PUSH word [BP + 6]
+    PUSH word [BP + 4]
+    CALL isColValid
+    POP word [BP + 12]
+
+    CMP word [BP + 12], 0
+    JE is_not_valid
+
+    PUSH word 0
+    PUSH word [BP + 10]
+    PUSH word [BP + 8]
+    PUSH word [BP + 6]
+    PUSH word [BP + 4]
+    CALL isSubgridValid
+    POP word [BP + 12]
+
+    CMP word [BP + 12], 0
+    JE is_not_valid
+
+is_not_valid:
     POP BP
 
     RET 8

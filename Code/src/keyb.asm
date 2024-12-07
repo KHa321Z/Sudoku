@@ -55,8 +55,8 @@ chk_nums:
     ; Update Score
     MOV AX, [mistake_count]
     SUB AX, 0x30
-    MOV BX, 50
-    MUL BL
+    MOV DX, 50
+    MUL DL
 
     SUB [score], AX
     CMP word [score], 0
@@ -67,6 +67,7 @@ chk_nums:
 skip_reset_score:
     ; Print Score
     PUSH word 0x0124
+    PUSH word 0x4
     CALL printScore
 
     ; Change Background of Cell to Mistake Color
@@ -79,6 +80,7 @@ skip_reset_score:
     PUSH word 0x6
     PUSH word 0x7
     CALL clearGridBox
+    
     ; Temporarily Print the Number
     MOV [board + BX], CL
 
@@ -118,6 +120,7 @@ valid_input:
     MOV word [score_sec], 18
     ; Print Score
     PUSH word 0x0124
+    PUSH word 0x4
     CALL printScore
 
     ; Update Number Cards
@@ -131,18 +134,41 @@ valid_input:
     PUSH word 0xF
     CALL drawCards
 
-    ; If Row, Col and Sub-Grid all Completed Then Play Sound
+    ; If any Row, Col or Sub-Grid Completed Then Play Sound
     PUSH word 0
     PUSH word board
     PUSH word 0
     PUSH word [boardInd]
     PUSH word [boardInd + 2]
-    CALL insertIsValid
+    CALL isRowValid
+    POP AX
+
+    CMP AX, 1
+    JE play_celebration
+
+    PUSH word 0
+    PUSH word board
+    PUSH word 0
+    PUSH word [boardInd]
+    PUSH word [boardInd + 2]
+    CALL isColValid
+    POP AX
+
+    CMP AX, 1
+    JE play_celebration
+
+    PUSH word 0
+    PUSH word board
+    PUSH word 0
+    PUSH word [boardInd]
+    PUSH word [boardInd + 2]
+    CALL isSubgridValid
     POP AX
 
     CMP AX, 1
     JNE highlight_next
 
+play_celebration:
     CALL celebratorySound
 
     JMP highlight_next
@@ -432,10 +458,13 @@ highlight_next:
     CALL redrawCell
 
 nomatch:
+    MOV AL, 0x20
+    OUT 0x20, AL
+
     POP DS
     POPA
 
-    JMP FAR [CS:oldKbISR]
+    IRET
 
 redrawCell:
     ; [BP + 06] CELL_BORDER_COLOR
@@ -521,12 +550,12 @@ unhookKb:
     XOR AX, AX
     MOV ES, AX
 
-    STI
-    MOV AX, [oldKbISR]
-    MOV [ES:8 * 4], AX
-    MOV AX, [oldKbISR + 2]
-    MOV [ES:8 * 4 + 2], AX
     CLI
+    MOV AX, [oldKbISR]
+    MOV [ES:9 * 4], AX
+    MOV AX, [oldKbISR + 2]
+    MOV [ES:9 * 4 + 2], AX
+    STI
 
     POP ES
     POP AX

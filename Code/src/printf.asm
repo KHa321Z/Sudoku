@@ -207,6 +207,71 @@ printNumbers:
     RET 14
 
 
+printString:
+    ; [BP + 10] POS_X
+    ; [BP + 08] POS_Y
+    ; [BP + 06] NULL_TERM_STRING
+    ; [BP + 04] COLOR
+    PUSH BP
+    MOV BP, SP
+
+    PUSHA
+    PUSH ES
+
+    PUSH DS
+    POP ES
+
+    XOR AX, AX
+    MOV CX, 0xFFFF
+    MOV DI, [BP + 6]
+    REPNE SCASB
+
+    MOV AX, 0xFFFF
+    SUB AX, CX
+    DEC AX
+    MOV CX, AX
+
+    MOV DX, [BP + 10]
+    MOV DI, [BP + 6]
+
+draw_char:
+    XOR BX, BX
+    MOV BL, [DI]
+
+    CMP BL, 0x20
+    JE skip_space
+
+    SUB BL, 65
+    CMP BL, 26
+    JL is_uppercase
+
+    SUB BL, 5
+
+is_uppercase:
+    SHL BX, 4
+    ADD BX, chars
+
+    PUSH DX
+    PUSH word [BP + 8]
+    PUSH word 8
+    PUSH word 16
+    PUSH word [BP + 4]
+    PUSH BX
+    CALL printfont
+
+skip_space:
+    ADD DX, 8
+    INC DI
+    LOOP draw_char
+
+    POP ES
+    POPA
+
+    POP BP
+
+    RET 8
+
+
 drawCards:
     ; [BP + 18] POS_X
     ; [BP + 16] POS_Y
@@ -328,8 +393,9 @@ draw_card:
     RET 16
 
 printTeleNum:
-    ; [BP + 06] Row/Col Value
-    ; [BP + 04] Number
+    ; [BP + 08] ROW/COL_VALUE
+    ; [BP + 06] NUMBER
+    ; [BP + 04] COLOR
     PUSH BP
     MOV BP, SP
 
@@ -339,7 +405,7 @@ printTeleNum:
     PUSH DS
     POP ES
 
-    MOV AX, [BP + 4]
+    MOV AX, [BP + 6]
     MOV BX, 10
     MOV CX, 0
 
@@ -357,10 +423,10 @@ next_digit:
     ; Set Cursor Position
     MOV AH, 0x02
     MOV BH, 0
-    MOV DX, [BP + 6]
+    MOV DX, [BP + 8]
     INT 0x10
     ; Set Color
-    MOV BX, 0x0004
+    MOV BX, [BP + 4]
 
 print_next_digit:
     POP AX
@@ -374,10 +440,10 @@ print_next_digit:
 
     POP BP
 
-    RET 4
+    RET 6
 
 printMistakes:
-    ; [BP + 04] Row/Col Value
+    ; [BP + 04] ROW/COL_VALUE
     PUSH BP
     MOV BP, SP
 
@@ -398,7 +464,7 @@ printMistakes:
     POP BP
 
     PUSH BP
-    ADD SP, 3
+    SUB SP, 3
     MOV BP, SP
 
     MOV CX, [mistake_count]
@@ -410,7 +476,7 @@ printMistakes:
     ADD DL, [m_size]
     INT 0x10
 
-    SUB SP, 3
+    ADD SP, 3
     POP BP
 
     POP ES
@@ -421,7 +487,8 @@ printMistakes:
     RET 2    
 
 printScore:
-    ; [BP + 04] Row/Col Value
+    ; [BP + 06] ROW/COL_VALUE
+    ; [BP + 04] COLOR
     PUSH BP
     MOV BP, SP
 
@@ -433,9 +500,9 @@ printScore:
 
     ; Print Score Text
     MOV AX, 0x1300
-    MOV BX, 0x0004
+    MOV BX, [BP + 4]
     MOV CX, [score_size]
-    MOV DX, [BP + 4]
+    MOV DX, [BP + 6]
 
     PUSH BP
     MOV BP, score_text
@@ -457,6 +524,7 @@ printScore:
 
     PUSH DX
     PUSH word [score]
+    PUSH word [BP + 4]
     CALL printTeleNum
 
     POP ES
@@ -464,4 +532,60 @@ printScore:
 
     POP BP
 
-    RET 2 
+    RET 4
+
+printTimer:
+    ; [BP + 04] Row/Col Value
+    PUSH BP
+    MOV BP, SP
+
+    PUSHA
+
+    MOV AX, [CS:time]
+    MOV BX, 10
+    MOV CX, 0
+
+nextdigit:
+    ; Extracts LSB
+    MOV DX, 0
+    DIV BX
+    ADD DL, 0x30
+    PUSH DX
+    ; Extracts MSB
+    MOV DX, 0
+    DIV BX
+    ADD DL, 0x30
+    PUSH DX
+
+    ADD CX, 2
+    CMP CX, 5
+    JE move_cursor
+
+    PUSH word ':'
+    MOV AX, [CS:time + 2]
+    INC CX
+
+    JMP nextdigit
+
+move_cursor:
+    ; Set Cursor
+    MOV AX, 0x0200
+    MOV BX, 0
+    MOV DX, [BP + 4]
+    INT 0x10
+
+print_clock:
+    POP AX
+
+    ; CALL Teletype Output
+    MOV AH, 0x0E
+    MOV BL, 0x1
+    INT 0x10
+
+    LOOP print_clock
+
+    POPA
+
+    POP BP
+
+    RET 2

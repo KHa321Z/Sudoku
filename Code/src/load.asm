@@ -110,6 +110,7 @@ loadingAnimation:
 shit:
     PUSH word 0
     PUSH CX
+    PUSH word 0x1
     CALL printTeleNum
     INC CX
     JMP shit
