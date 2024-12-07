@@ -18,6 +18,7 @@
 %include "Code/src/boardgen.asm"
 %include "Code/src/load.asm"
 %include "Code/src/undo.asm"
+%include "Code/src/image.asm"
 
 ; MAIN SCREEN
 title:  db 'SUDOKU'
@@ -38,19 +39,16 @@ start:
     INT 0x10
 
     CALL startscreen
-    ; MOV AX, 0
-    ; INT 0x16
 
     CALL loadingscreen
 
     CALL gamescreen
-    MOV AX, 0
-    INT 0x16
 
     CALL endingscreen
-    MOV AX, 0
-    INT 0x16
+    
+    JMP start
 
+end_game:
     ; Reverting back to 80x25 mode
     MOV AX, 0x0003
     INT 0x10
@@ -85,6 +83,7 @@ gamemode:       db 'Mode:'
 mode:           db 'Easy'
 mode_size:      dw mode_size - mode
 
+time:           dd 0
 timestr:        db 'Time:'
 time_size:      dw time_size - timestr
 empty_timer:    db '00:00'
@@ -98,7 +97,7 @@ edit_size:      db edit_size - edit
 hint:           db 'HINT'
 hint_size:      db hint_size - hint
 
-palette_data:   db 62, 54, 46               ; 0x0 Background
+game_palette:   db 62, 54, 46               ; 0x0 Background
                 db 58, 35, 09               ; 0x1 Grid Border
                 db 59, 47, 35               ; 0x2 Highlighted Grid Boxes
                 db 63, 55, 47               ; 0x3 Not Filled Grid Boxes
@@ -106,10 +105,18 @@ palette_data:   db 62, 54, 46               ; 0x0 Background
                 db 63, 28, 00               ; 0x5 Custom Filled Numbers
                 db 63, 00, 00               ; 0x6 Highlighted Grid Boxes Border
                 db 59, 37, 37               ; 0x7 Mistake Grid Box Background
-palette_size:   dw $ - palette_data
+game_pal_size:  dw $ - game_palette
+
+screen_img:     db "Code/assets/menu.bmp", 0
+img_handle:     dw -1, -1, -1
 
 ; Send Palette Data to DAC
 setPalette:
+    ; [BP + 06] PALETTE
+    ; [BP + 04] PALETTE_SIZE
+    PUSH BP
+    MOV BP, SP
+
     PUSHA
 
     ; DAC Pallete Write Port
@@ -118,8 +125,8 @@ setPalette:
     XOR AL, AL
     OUT DX, AL
 
-    MOV SI, palette_data
-    MOV CX, [palette_size]
+    MOV SI, [BP + 6]
+    MOV CX, [BP + 4]
     ; DAC Port for RGB Values
     MOV DX, 0x3C9
 
@@ -132,13 +139,103 @@ palette_loop:
 
     POPA
 
-    RET
+    POP BP
+
+    RET 4
+
+difficulties:   db 40, 30, 25
+btn_pos:        dw 168, 220, 272, 360
+point_colors:   dw 0x3, 0xF
 
 startscreen:
 
     PUSHA
 
-    CALL setPalette
+    openbitmap screen_img, img_handle
+    drawimage img_handle, 0, 0, 640, 480, 0, 0, 0, CX
+    closebitmap img_handle
+
+    MOV SI, 0
+
+main_nav:
+    MOV BX, 0
+    CMP SI, 3
+    JNE chk_main_key
+
+    XOR BX, 2
+
+chk_main_key:
+    ; Draw Pointer
+    SHL SI, 1
+    PUSH word 65
+    PUSH word [btn_pos + SI]
+    PUSH word 32
+    PUSH word 32
+    PUSH word [point_colors + BX]
+    PUSH word pointer
+    CALL printfont
+    SHR SI, 1
+
+    XOR BX, 2
+
+    MOV AX, 0
+    INT 0x16
+
+    ; up
+    CMP AH, 0x48
+    JNE chk_main_down
+
+    ; Clear Pointer
+    SHL SI, 1
+    PUSH word 65
+    PUSH word [btn_pos + SI]
+    PUSH word 32
+    PUSH word 32
+    PUSH word [point_colors + BX]
+    PUSH word pointer
+    CALL printfont
+    SHR SI, 1
+
+    DEC SI
+    AND SI, 3
+
+    JMP main_nav
+
+chk_main_down:
+    ; down
+    CMP AH, 0x50
+    JNE chk_main_enter
+
+    ; Clear Pointer
+    SHL SI, 1
+    PUSH word 65
+    PUSH word [btn_pos + SI]
+    PUSH word 32
+    PUSH word 32
+    PUSH word [point_colors + BX]
+    PUSH word pointer
+    CALL printfont
+    SHR SI, 1
+
+    INC SI
+    AND SI, 3
+
+    JMP main_nav
+
+chk_main_enter:
+    ; Play Button Sound
+    CALL buttonSound
+
+    ; Enter Key
+    CMP AH, 0x1C
+    JNE main_nav
+
+    CMP SI, 3
+    JE end_game
+
+    XOR BH, BH
+    MOV BL, [difficulties + SI]
+    MOV [difficulty], BX
 
     POPA
 
@@ -150,11 +247,11 @@ loadingscreen:
     PUSHA
     PUSH ES
 
-    ; Set Task for Loading Animation
-    CALL setLoadingTask
+    ; ; Set Task for Loading Animation
+    ; CALL setLoadingTask
 
-    PUSH word loadTimer
-    CALL hookTimer
+    ; PUSH word loadTimer
+    ; CALL hookTimer
 
     ; Background Task of Board Generation
     PUSH word solved
@@ -169,9 +266,6 @@ loadingscreen:
 
     PUSH DS
     POP ES
-
-    ; Use this when selecting levels
-    MOV word [difficulty], 60
 
 generate_new_board:
     MOV CX, 41
@@ -200,8 +294,8 @@ generate_new_board:
     CMP BX, 2
     JE generate_new_board
 
-    ; Board Generation Complete
-    CALL unhookTimer
+    ; ; Board Generation Complete
+    ; CALL unhookTimer
 
     POP ES
     POPA
@@ -215,6 +309,13 @@ gamescreen:
 
     PUSH DS
     POP ES
+
+    MOV AX, 0x0012
+    INT 0x10
+
+    PUSH word game_palette
+    PUSH word [game_pal_size]
+    CALL setPalette
 
     PUSH word timerISR
     CALL hookTimer
@@ -239,6 +340,7 @@ gamescreen:
 
     ; Print Score
     PUSH word 0x0124
+    PUSH word 0x4
     CALL printScore
 
     ; Print Mistakes
@@ -395,13 +497,75 @@ game_loop_end:
     RET
 
 
-congrats:   db 'Congratulations!'
-cong_size:  dw cong_size - congrats
-quit:       db 'Quit Game'
-quit_size:  dw quit_size - quit
-newgame:    db 'New Game'
-new_size:   dw new_size - newgame
+congrats:       db 'Congratulations!'
+cong_size:      dw cong_size - congrats
+lose:           db 'You Lose'
+lose_size:      dw lose_size - lose
+quit:           db 'Quit Game', 0
+newgame:        db 'Main Menu', 0
 
+btn_pos_end:    dw 216, 344
+btn_str_end:    dw newgame, quit
+
+drawEndingBtns:
+    ; [BP + 10] POS_X
+    ; [BP + 8] POS_Y
+    ; [BP + 6] STRING
+    ; [BP + 4] HIGHLIGHT
+    PUSH BP
+    MOV BP, SP
+
+    PUSH AX
+
+    MOV AX, 0x04
+    CMP word [BP + 4], 1
+    JNE not_highlight
+
+    MOV AX, 0x0F
+
+not_highlight:
+    PUSH word [BP + 10]
+    PUSH word [BP + 8]
+    PUSH word 87
+    PUSH word 26
+    PUSH word 0x0
+    PUSH word 0x1
+    CALL drawRect
+
+    PUSH word [BP + 10]
+    PUSH word [BP + 8]
+    PUSH word 87
+    PUSH word 26
+    PUSH word 0x1
+    PUSH word 0x0
+    CALL drawRect
+
+    INC word [BP + 10]
+    INC word [BP + 8]
+
+    PUSH word [BP + 10]
+    PUSH word [BP + 8]
+    PUSH word 85
+    PUSH word 24
+    PUSH word 0x1
+    PUSH word [BP + 4]
+    CALL drawRect
+
+    ; (8, 5) Offset from Button
+    ADD word [BP + 10], 7
+    ADD word [BP + 8], 4
+
+    PUSH word [BP + 10]
+    PUSH word [BP + 8]
+    PUSH word [BP + 6]
+    PUSH AX
+    CALL printString
+
+    POP AX
+
+    POP BP
+
+    RET 8
 
 endingscreen:
     PUSHA
@@ -422,7 +586,7 @@ endingscreen:
     PUSH word 120
     PUSH word 320
     PUSH word 240
-    PUSH word 0x1
+    PUSH word 0x4
     PUSH word 0x0
     CALL drawRect
 
@@ -430,30 +594,29 @@ endingscreen:
     PUSH word 119
     PUSH word 322
     PUSH word 242
-    PUSH word 0x1
+    PUSH word 0x4
     PUSH word 0x0
     CALL drawRect
-    
-    MOV AX, 0x1300
-    MOV BX, 0x0004
+
     MOV CX, [cong_size]
     MOV DX, 0x0A20
     MOV BP, congrats
-    INT 0x10
+
+    CMP word [mistake_count], 0x33
+    JNE print_congrats
     
-    MOV AX, 0x1301
-    MOV BX, 0x0001
-    MOV CX, [score_size]
-    MOV DX, 0x0D18
-    MOV BP, score_text
+    MOV CX, [lose_size]
+    MOV DX, 0x0A24
+    MOV BP, lose
+
+print_congrats:
+    MOV AX, 0x1300
+    MOV BX, 0x0004
     INT 0x10
 
-    MOV AX, 0x0E20
-    MOV BX, 0x0001
-    INT 0x10
-    MOV AX, 0x0E30
-    MOV BX, 0x0001
-    INT 0x10
+    PUSH word 0x0D18
+    PUSH word 0x1
+    CALL printScore
     
     MOV AX, 0x1300
     MOV BX, 0x0001
@@ -461,13 +624,9 @@ endingscreen:
     MOV DX, 0x0D2C
     MOV BP, timestr
     INT 0x10
-    
-    MOV AX, 0x1300
-    MOV BX, 0x0001
-    MOV CX, 5
-    MOV DX, 0x0D32
-    MOV BP, empty_timer
-    INT 0x10
+
+    PUSH word 0x0D32
+    CALL printTimer
     
     MOV AX, 0x1300
     MOV BX, 0x0001
@@ -483,44 +642,86 @@ endingscreen:
     MOV BP, mode
     INT 0x10
 
-    MOV AX, 0x1300
-    MOV BX, 0x0001
-    MOV CX, [m_size]
-    MOV DX, 0x0F2C
-    MOV BP, mistakes
-    INT 0x10
+    PUSH word 0x0F2C
+    CALL printMistakes
 
-    MOV AX, 0x1300
-    MOV BX, 0x0004
-    MOV CX, [new_size]
-    MOV DX, 0x131C
-    MOV BP, newgame
-    INT 0x10
-
-    PUSH word 219
+    PUSH word [btn_pos_end]
     PUSH word 300
-    PUSH word 72
-    PUSH word 24
+    PUSH word [btn_str_end]
     PUSH word 0x1
-    PUSH word 0x0
-    CALL drawRect
+    CALL drawEndingBtns
 
-    MOV AX, 0x1300
-    MOV BX, 0x0004
-    MOV CX, [quit_size]
-    MOV DX, 0x132C
-    MOV BP, quit
-    INT 0x10
-
-    PUSH word 348
+    PUSH word [btn_pos_end + 2]
     PUSH word 300
-    PUSH word 80
-    PUSH word 24
-    PUSH word 0x1
+    PUSH word [btn_str_end + 2]
     PUSH word 0x0
-    CALL drawRect
+    CALL drawEndingBtns
 
-    JMP $
+    MOV SI, 0
+
+end_nav:
+    MOV AX, 0
+    INT 0x16
+
+    ; right key
+    CMP AH, 0x4D
+    JE change_btn
+    ; left key
+    CMP AH, 0x4B
+    JE change_btn
+    ; Enter Key
+    CMP AH, 0x1C
+    JE end_enter
+
+    JMP end_nav
+
+change_btn:
+    SHL SI, 1
+    PUSH word [btn_pos_end + SI]
+    PUSH word 300
+    PUSH word [btn_str_end + SI]
+    PUSH word 0
+    CALL drawEndingBtns
+    SHR SI, 1
+
+    XOR SI, 1
+
+    SHL SI, 1
+    PUSH word [btn_pos_end + SI]
+    PUSH word 300
+    PUSH word [btn_str_end + SI]
+    PUSH word 0x1
+    CALL drawEndingBtns
+    SHR SI, 1
+
+    JMP end_nav
+
+end_enter:
+    CMP SI, 1
+    JE end_game
+
+    MOV AX, 0
+    MOV CX, 326
+    MOV DI, solved
+
+    REP STOSB
+
+    MOV AL, 9
+    MOV CX, 9
+
+    REP STOSB
+
+    MOV word [empty_values], 0
+    MOV word [score], 0
+    MOV word [mistake_count], 0x30
+    MOV word [time], 0
+    MOV word [time + 2], 0
+    MOV word [boardInd], 0
+    MOV word [boardInd + 2], 0
+    MOV byte [notesOn], 0
+    MOV byte [eraseOn], 0
+    MOV word [undoTop], undoTop
+    MOV word [tick], 0
 
     POP ES
     POPA
