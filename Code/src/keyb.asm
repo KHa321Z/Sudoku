@@ -415,6 +415,22 @@ chk_undo:
     CMP AX, -1
     JE no_undo_available
 
+    ; Add Toggle Effect to Undo Button
+    PUSH word 580
+    PUSH word 340
+    PUSH word 18
+    PUSH word 0x0
+    PUSH word 0x1
+    CALL drawCircle
+
+    PUSH word 568
+    PUSH word 328
+    PUSH word 24
+    PUSH word 24
+    PUSH word 0x1
+    PUSH word undo_btn
+    CALL printfont
+
     PUSH word [boardInd]
     PUSH word [boardInd + 2]
 
@@ -442,6 +458,22 @@ chk_undo:
 
     POP word [boardInd + 2]
     POP word [boardInd]
+
+    ; Latter Part of the Toggle Effect
+    PUSH word 580
+    PUSH word 340
+    PUSH word 20
+    PUSH word 0x1
+    PUSH word 0x1
+    CALL drawCircle
+    
+    PUSH word 568
+    PUSH word 328
+    PUSH word 24
+    PUSH word 24
+    PUSH word 0xF
+    PUSH word undo_btn
+    CALL printfont
 
     ; Redraw the Current Cell in the Case Undo was done to Current Cell
     JMP highlight_next
