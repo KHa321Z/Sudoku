@@ -78,10 +78,16 @@ mistake_count:  dw 0x30
 mistakes:       db 'Mistakes: '
 m_size:         dw m_size - mistakes
 
+difficulties:   db 40, 35, 30
 difficulty:     dw 0
+easy_s:         db 'Easy'
+medium_s:       db 'Medium'
+hard_s:         db 'Hard'
+all_modes:      dw easy_s, medium_s, hard_s
+all_mode_size:  dw 4, 6, 4
 gamemode:       db 'Mode:'
-mode:           db 'Easy'
-mode_size:      dw mode_size - mode
+mode:           dw 0
+mode_size:      dw 0
 
 time:           dd 0
 timestr:        db 'Time:'
@@ -143,7 +149,6 @@ palette_loop:
 
     RET 4
 
-difficulties:   db 40, 35, 30
 btn_pos:        dw 168, 220, 272, 360
 point_colors:   dw 0x3, 0xF
 
@@ -236,6 +241,13 @@ chk_main_enter:
     XOR BH, BH
     MOV BL, [difficulties + SI]
     MOV [difficulty], BX
+
+    SHL SI, 1
+    MOV BX, [all_modes + SI]
+    MOV [mode], BX
+    MOV BX, [all_mode_size + SI]
+    MOV [mode_size], BX
+    SHR SI, 1
 
     POPA
 
@@ -352,7 +364,13 @@ gamescreen:
     MOV BX, 0x0001
     MOV CX, [mode_size]
     MOV DX, 0x0326
-    MOV BP, mode
+
+    CMP CX, 6
+    JNE adjust_mode_length
+    DEC DX
+
+adjust_mode_length:
+    MOV BP, [mode]
     INT 0x10
 
     ; Print Empty Timer
@@ -639,7 +657,7 @@ print_congrats:
     MOV BX, 0x0001
     MOV CX, [mode_size]
     MOV DX, 0x0F1E
-    MOV BP, mode
+    MOV BP, [mode]
     INT 0x10
 
     PUSH word 0x0F2C
